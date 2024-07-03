@@ -8,7 +8,6 @@ import {
   Delete,
   UseGuards,
   Request,
-  ForbiddenException,
 } from '@nestjs/common';
 import { WishesService } from './wishes.service';
 import { CreateWishDto } from './dto/create-wish.dto';
@@ -42,30 +41,18 @@ export class WishesController {
     @Param('id') id: number,
     @Body() updateWishDto: UpdateWishDto,
   ) {
-    const wish = await this.wishesService.findOne(id);
-    if (wish.owner.id !== req.user.id) {
-      throw new ForbiddenException('You can only edit your own wishes');
-    }
-    if (wish.offers.length > 0) {
-      throw new ForbiddenException(
-        'Cannot update the wish as it already has contributions.',
-      );
-    }
-    return this.wishesService.update(id, updateWishDto);
+    return this.wishesService.update(req.user.id, id, updateWishDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/copy')
+  async copyWish(@Param('id') id: number, @Request() req) {
+    return this.wishesService.copyWish(id, req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Request() req, @Param('id') id: number) {
-    const wish = await this.wishesService.findOne(id);
-    if (wish.owner.id !== req.user.id) {
-      throw new ForbiddenException('You can only edit your own wishes');
-    }
-    if (wish.offers.length > 0) {
-      throw new ForbiddenException(
-        'Cannot update the wish as it already has contributions.',
-      );
-    }
-    return this.wishesService.remove(id);
+    return this.wishesService.remove(id, req.user.id);
   }
 }

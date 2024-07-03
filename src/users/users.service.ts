@@ -1,9 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere, Not } from 'typeorm';
+import { hashPassword } from 'src/utils/bcrypt.util';
 
 @Injectable()
 export class UsersService {
@@ -13,8 +18,18 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const user = this.userRepository.create(createUserDto);
+    const { email, username } = createUserDto;
+    const existingUser = await this.userRepository.findOne({
+      where: [{ email }, { username }],
+    });
 
+    if (existingUser) {
+      throw new ConflictException(
+        'Пользователь с таким email или username уже существует',
+      );
+    }
+
+    const user = this.userRepository.create(createUserDto);
     return await this.userRepository.save(user);
   }
 
@@ -35,11 +50,34 @@ export class UsersService {
   }
 
   async update(
-    query: FindOptionsWhere<User>,
+    id: number,
     updateUserDto: UpdateUserDto,
   ): Promise<User | undefined> {
-    await this.userRepository.update(query, updateUserDto);
-    return await this.userRepository.findOne({ where: query });
+    if (updateUserDto.password) {
+      updateUserDto.password = await hashPassword(updateUserDto.password);
+    }
+
+    const { email, username } = updateUserDto;
+    if (email || username) {
+      const existingUser = await this.userRepository.findOne({
+        where: [
+          { email, id: Not(id) },
+          { username, id: Not(id) },
+        ],
+      });
+      if (existingUser) {
+        throw new ConflictException(
+          'Пользователь с таким email или username уже зарегистрирован',
+        );
+      }
+    }
+    await this.userRepository.update(id, updateUserDto);
+    const updatedUser = await this.userRepository.findOne({ where: { id } });
+
+    if (!updatedUser) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return await this.userRepository.findOne({ where: { id } });
   }
 
   async remove(query: FindOptionsWhere<User>): Promise<void> {

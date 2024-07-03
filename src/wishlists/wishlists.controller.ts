@@ -8,7 +8,6 @@ import {
   Delete,
   Request,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { WishlistsService } from './wishlists.service';
 import { CreateWishlistDto } from './dto/create-wishlist.dto';
@@ -42,20 +41,12 @@ export class WishlistsController {
     @Param('id') id: number,
     @Body() updateWishlistDto: UpdateWishlistDto,
   ) {
-    const wishlist = await this.wishlistsService.findOne(id);
-    if (wishlist.user !== req.user.id) {
-      throw new ForbiddenException('You can only edit your own wishlists.');
-    }
     return this.wishlistsService.update(id, updateWishlistDto, req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Request() req, @Param('id') id: number) {
-    const wishlist = await this.wishlistsService.findOne(id);
-    if (wishlist.user !== req.user.id) {
-      throw new ForbiddenException('You can only edit your own wishlists.');
-    }
     return this.wishlistsService.remove(id, req.user.id);
   }
 }

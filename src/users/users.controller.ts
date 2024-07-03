@@ -14,7 +14,6 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { hashPassword } from 'src/utils/bcrypt.util';
 
 @Controller('users')
 export class UsersController {
@@ -49,10 +48,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   async update(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    if (updateUserDto.password) {
-      updateUserDto.password = await hashPassword(updateUserDto.password);
-    }
-    return this.usersService.update({ id: req.user.id }, updateUserDto);
+    return this.usersService.update(req.user.id, updateUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
